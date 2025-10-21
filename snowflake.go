@@ -8,6 +8,9 @@ import (
 	"time"
 )
 
+// Option is a function that configures a Snowflake instance
+type Option func(*Snowflake)
+
 type Snowflake struct {
 	lastTimestamp atomic.Int64
 	sequence      atomic.Int64

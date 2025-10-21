@@ -2,7 +2,7 @@ package snowflake_test
 
 import (
 	"testing"
-	"github.com/viettuan1807/snowflake"
+	"github.com/viettuan1807/go-snowflake"
 )
 
 func BenchmarkSnowflake(b *testing.B) {
