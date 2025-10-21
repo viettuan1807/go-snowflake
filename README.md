@@ -1,4 +1,4 @@
-# go-snowflake
+# go-snowflake [![Go](https://github.com/viettuan1807/go-snowflake/actions/workflows/go.yml/badge.svg)](https://github.com/viettuan1807/go-snowflake/actions/workflows/go.yml)
 
 A high-performance Snowflake ID generator for Go, providing distributed unique ID generation with timestamp ordering.
 
