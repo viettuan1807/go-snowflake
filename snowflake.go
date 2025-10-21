@@ -11,6 +11,42 @@ import (
 // Option is a function that configures a Snowflake instance
 type Option func(*Snowflake)
 
+func WithEpoch(epoch int64) Option {
+	return func(s *Snowflake) { s.epoch = epoch }
+}
+
+func WithWorkerBits(bits uint8) Option {
+	return func(s *Snowflake) { s.workerBits = bits }
+}
+
+func WithDatacenterBits(bits uint8) Option {
+	return func(s *Snowflake) { s.datacenterBits = bits }
+}
+
+func WithDatacenterID(id int64) Option {
+	return func(s *Snowflake) { s.datacenterID = id }
+}
+
+func WithSequenceBits(bits uint8) Option {
+	return func(s *Snowflake) { s.sequenceBits = bits }
+}
+
+func WithTimestampBits(bits uint8) Option {
+	return func(s *Snowflake) { s.timestampBits = bits }
+}
+
+func WithWarnExpiry(enabled bool) Option {
+	return func(s *Snowflake) { s.warnExpiry = enabled }
+}
+
+func WithWarnExpiryBeforeDays(days int64) Option {
+	return func(s *Snowflake) { s.warnExpiryBeforeDays = days }
+}
+
+func WithExpiryCallback(cb func(expiry time.Time)) Option {
+	return func(s *Snowflake) { s.onWarn = cb }
+}
+
 type Snowflake struct {
 	lastTimestamp atomic.Int64
 	sequence      atomic.Int64
