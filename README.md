@@ -69,6 +69,260 @@ func main() {
 }
 ```
 
+## Options Configuration
+
+The Snowflake generator supports flexible configuration through the `Option` pattern. Options allow you to customize the behavior and bit allocation of the ID generator to match your specific requirements.
+
+### What are Options?
+
+Options are functions that modify the configuration of a Snowflake instance during initialization. They provide a clean, extensible way to customize various aspects of the ID generator without requiring a complex constructor with many parameters.
+
+### When to Use Options
+
+Use Options when you need to:
+- **Customize the epoch**: Change the reference timestamp for your IDs
+- **Adjust bit allocation**: Modify the number of bits for worker, datacenter, sequence, or timestamp
+- **Enable multi-datacenter support**: Add datacenter identification to your IDs
+- **Control expiry warnings**: Configure or disable timestamp expiration alerts
+- **Support different scaling requirements**: Balance between more workers, higher throughput, or longer timestamp ranges
+
+### Available Options
+
+#### WithEpoch
+
+Set a custom epoch (reference timestamp in milliseconds since Unix epoch).
+
+```go
+package main
+
+import (
+    "time"
+    "github.com/viettuan1807/go-snowflake"
+)
+
+func main() {
+    // Use January 1, 2020 as the epoch
+    customEpoch := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli()
+    sf := snowflake.NewSnowflake(1, snowflake.WithEpoch(customEpoch))
+    
+    id := sf.NextID()
+    // IDs will be measured from 2020-01-01 instead of the default 2025-01-01
+}
+```
+
+**When to use**: Set an epoch closer to when your service started to maximize timestamp space, or use a standardized epoch across multiple services.
+
+#### WithWorkerBits
+
+Customize the number of bits allocated for worker IDs.
+
+```go
+package main
+
+import (
+    "github.com/viettuan1807/go-snowflake"
+)
+
+func main() {
+    // Allow up to 1024 workers (10 bits) instead of default 2048 (11 bits)
+    sf := snowflake.NewSnowflake(1, 
+        snowflake.WithWorkerBits(10),
+        snowflake.WithSequenceBits(13), // Adjust other bits accordingly
+    )
+    
+    id := sf.NextID()
+}
+```
+
+**When to use**: If you need fewer workers but want more bits for other components, or if you need more workers than the default 2048.
+
+#### WithDatacenterBits and WithDatacenterID
+
+Enable multi-datacenter support by allocating bits for datacenter identification.
+
+```go
+package main
+
+import (
+    "github.com/viettuan1807/go-snowflake"
+)
+
+func main() {
+    // Configure for 32 datacenters (5 bits) and 1024 workers per datacenter (10 bits)
+    sf := snowflake.NewSnowflake(1,
+        snowflake.WithDatacenterBits(5),
+        snowflake.WithDatacenterID(1), // This worker is in datacenter 1
+        snowflake.WithWorkerBits(10),
+        snowflake.WithSequenceBits(12),
+        snowflake.WithTimestampBits(36),
+    )
+    
+    id := sf.NextID()
+    
+    // Extract datacenter information
+    datacenterID := sf.GetDatacenterID(id)
+    // datacenterID will be 1
+}
+```
+
+**When to use**: When deploying across multiple datacenters and need to identify which datacenter generated an ID.
+
+#### WithSequenceBits
+
+Adjust the number of bits for the sequence counter, which determines how many IDs can be generated per millisecond.
+
+```go
+package main
+
+import (
+    "github.com/viettuan1807/go-snowflake"
+)
+
+func main() {
+    // Allow 4096 IDs per millisecond (12 bits) instead of default 8192 (13 bits)
+    sf := snowflake.NewSnowflake(1, 
+        snowflake.WithSequenceBits(12),
+        snowflake.WithTimestampBits(40), // More timestamp bits = longer lifespan
+    )
+    
+    id := sf.NextID()
+}
+```
+
+**When to use**: If you don't need extremely high throughput per worker, reduce sequence bits to get more timestamp bits for a longer lifespan.
+
+#### WithTimestampBits
+
+Control the number of bits allocated for timestamps, affecting the lifespan of your ID space.
+
+```go
+package main
+
+import (
+    "github.com/viettuan1807/go-snowflake"
+)
+
+func main() {
+    // Increase timestamp bits for longer lifespan
+    sf := snowflake.NewSnowflake(1,
+        snowflake.WithTimestampBits(41), // ~69 years instead of default ~17 years
+        snowflake.WithWorkerBits(10),
+        snowflake.WithSequenceBits(12),
+    )
+    
+    id := sf.NextID()
+}
+```
+
+**When to use**: For long-lived systems where the default ~17 year lifespan might not be sufficient.
+
+#### WithWarnExpiry
+
+Enable or disable expiry warnings when the timestamp space is nearing exhaustion.
+
+```go
+package main
+
+import (
+    "github.com/viettuan1807/go-snowflake"
+)
+
+func main() {
+    // Disable expiry warnings
+    sf := snowflake.NewSnowflake(1, snowflake.WithWarnExpiry(false))
+    
+    id := sf.NextID()
+}
+```
+
+**When to use**: Disable warnings in testing or when you're confident about your timestamp allocation.
+
+#### WithWarnExpiryBeforeDays
+
+Customize when to start showing expiry warnings (default is 365 days before expiration).
+
+```go
+package main
+
+import (
+    "github.com/viettuan1807/go-snowflake"
+)
+
+func main() {
+    // Show warnings 90 days before expiration instead of 365
+    sf := snowflake.NewSnowflake(1, 
+        snowflake.WithWarnExpiryBeforeDays(90),
+    )
+    
+    id := sf.NextID()
+}
+```
+
+**When to use**: Adjust the warning threshold based on your operational needs and planning cycles.
+
+#### WithExpiryCallback
+
+Set a custom callback function to be invoked when timestamp space is nearing expiration.
+
+```go
+package main
+
+import (
+    "log"
+    "time"
+    "github.com/viettuan1807/go-snowflake"
+)
+
+func main() {
+    // Custom expiry handler
+    sf := snowflake.NewSnowflake(1,
+        snowflake.WithExpiryCallback(func(expiry time.Time) {
+            log.Printf("ALERT: Snowflake IDs will expire on %s", expiry.Format("2006-01-02"))
+            // Send alert to monitoring system, create ticket, etc.
+        }),
+    )
+    
+    id := sf.NextID()
+}
+```
+
+**When to use**: Integrate expiry warnings with your monitoring, alerting, or logging infrastructure.
+
+### Combining Multiple Options
+
+You can combine multiple options to create a custom configuration:
+
+```go
+package main
+
+import (
+    "time"
+    "github.com/viettuan1807/go-snowflake"
+)
+
+func main() {
+    customEpoch := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli()
+    
+    sf := snowflake.NewSnowflake(42,
+        snowflake.WithEpoch(customEpoch),
+        snowflake.WithDatacenterBits(5),
+        snowflake.WithDatacenterID(2),
+        snowflake.WithWorkerBits(10),
+        snowflake.WithSequenceBits(12),
+        snowflake.WithTimestampBits(36),
+        snowflake.WithWarnExpiryBeforeDays(90),
+    )
+    
+    id := sf.NextID()
+}
+```
+
+### Important Notes
+
+- **Bit Allocation**: The total of all bits (worker + datacenter + sequence + timestamp) must not exceed 63 bits
+- **Consistency**: Once you choose a bit allocation scheme, it must remain consistent across all workers in your system
+- **Planning**: Choose your configuration carefully at the start - changing bit allocation later requires migration
+
 ## Usage Examples
 
 ### Basic ID Generation
@@ -181,14 +435,7 @@ sf := snowflake.NewSnowflake(100)
 
 ### Custom Configuration (Advanced)
 
-The package supports configuration options through the `Option` pattern (note: option functions need to be defined based on your specific needs):
-
-- **Custom Epoch**: Change the reference timestamp
-- **Bit Allocation**: Customize worker bits, datacenter bits, sequence bits, and timestamp bits
-- **Datacenter ID**: Set a datacenter identifier for multi-datacenter deployments
-- **Expiry Warnings**: Configure or disable timestamp expiry warnings
-
-**Note**: The total of all bits (worker + datacenter + sequence + timestamp) must not exceed 63 bits.
+For detailed information about all available configuration options, see the [Options Configuration](#options-configuration) section above. The package provides flexible configuration through various option functions that allow you to customize epoch, bit allocation, datacenter support, and expiry warnings to match your specific requirements.
 
 ## Environment Setup
 
