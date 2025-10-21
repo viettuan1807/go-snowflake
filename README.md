@@ -266,6 +266,51 @@ Run the included benchmark:
 go test -bench=. -benchmem
 ```
 
+## Benchmarks
+
+Below are the benchmark results showing the performance characteristics of the Snowflake ID generator:
+
+```
+goos: linux
+goarch: amd64
+pkg: github.com/viettuan1807/go-snowflake
+cpu: AMD EPYC 7763 64-Core Processor                
+BenchmarkSnowflake-4              	 8949064	       133.6 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSnowflakeParallel-4      	 8546304	       143.1 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGetTimestamp-4           	1000000000	         0.3285 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGetWorkerID-4            	1000000000	         0.3115 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGetDatacenterID-4        	1000000000	         0.3115 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGetSequence-4            	1000000000	         0.3112 ns/op	       0 B/op	       0 allocs/op
+BenchmarkConcurrentGeneration-4   	24127252	        46.35 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/viettuan1807/go-snowflake	5.267s
+```
+
+**Key Performance Metrics:**
+
+### ID Generation
+- **BenchmarkSnowflake**: 133.6 ns/op (~7.5 million IDs/sec)
+  - Single-threaded ID generation benchmark
+  - Zero memory allocations per operation
+  
+- **BenchmarkSnowflakeParallel**: 143.1 ns/op (~7.0 million IDs/sec)
+  - Parallel ID generation with multiple goroutines
+  - Demonstrates thread-safe concurrent performance
+  
+- **BenchmarkConcurrentGeneration**: 46.35 ns/op (~21.6 million IDs/sec aggregate)
+  - Simulates 10 concurrent workers generating IDs
+  - Shows excellent scalability under concurrent load
+
+### ID Extraction (Decomposition)
+All extraction methods are extremely fast with sub-nanosecond execution times:
+- **GetTimestamp**: 0.33 ns/op - Extract timestamp from ID
+- **GetWorkerID**: 0.31 ns/op - Extract worker ID from ID
+- **GetDatacenterID**: 0.31 ns/op - Extract datacenter ID from ID
+- **GetSequence**: 0.31 ns/op - Extract sequence number from ID
+
+**Summary:**
+The benchmarks demonstrate excellent performance with zero heap allocations across all operations, making this implementation suitable for high-throughput, low-latency applications. The ID extraction methods are particularly fast due to simple bitwise operations.
+
 ## API Reference
 
 ### Types
